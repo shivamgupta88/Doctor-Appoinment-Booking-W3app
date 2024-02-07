@@ -1,0 +1,61 @@
+@compiler >=6
+include "String.aes"
+
+contract DoctorAppointment =
+
+    record state = {
+        doctor: address,
+        patients: map(int, patient),
+        registrationFee: int
+        }
+
+    record patient = {
+        firstName: string,
+        lastName: string,
+        age: int,
+        gender: string,
+        isPaid: bool,
+        isVisited: bool,
+        patientAddress: address
+        }
+
+    entrypoint init(registrationFee: int): state =
+        {doctor = Call.caller, patients = {}, registrationFee = registrationFee}
+
+    payable stateful entrypoint bookappointment(firstName: string, lastName: string, age: int, gender: string): int =
+        let patient_id = Map.size(state.patients) + 1
+        let new_patient = {
+            firstName = firstName,
+            lastName = lastName,
+            age = age,
+            gender = gender,
+            isPaid = false,
+            isVisited = false,
+            patientAddress = Call.caller
+            }
+        Chain.spend(state.doctor, state.registrationFee)
+        put(state{patients[patient_id] = new_patient})
+        patient_id
+
+    private function only_doctor() =
+        require(Call.caller == state.doctor, "Only the doctor can call this function")
+
+    stateful entrypoint patientvisited(patient_id: int) =
+        only_doctor()
+        require(Map.member(patient_id, state.patients), "Patient not found")
+        put(state{patients[patient_id].isVisited = true})
+
+    entrypoint getpatientdetail(patient_id: int): patient =
+        require(Map.member(patient_id, state.patients), "Patient not found")
+        state.patients[patient_id]
+
+    payable stateful entrypoint undoVisitAndRefund(patient_id: int) =
+        only_doctor()
+        require(Map.member(patient_id, state.patients), "Patient not found")
+        let patient = state.patients[patient_id]
+        require(patient.isVisited == false, "Patient has already visited")
+        Chain.spend(patient.patientAddress, state.registrationFee)
+        put(state{patients[patient_id].isVisited = false})
+
+    entrypoint getAllPatients(): map(int, patient) =
+        state.patients
