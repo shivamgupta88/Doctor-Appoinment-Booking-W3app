@@ -1,5 +1,5 @@
 import { AeSdk } from "@aeternity/aepp-sdk";
-import React, { useState , useAlert } from "react";
+import React, { useState  } from "react";
 
 function AddPatients({balance , address ,aeSdk}) {
 	const [fname, setFname] = useState('');
